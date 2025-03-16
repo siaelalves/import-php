@@ -12,7 +12,7 @@
  * tanto nomes de pastas quanto arquivos individuais. Os scripts serão 
  * incluídos na ordem que forem especificados. Se for uma pasta, 
  * incluirá todos os scripts PHP dentro dessa pasta. Utilize sempre o 
- * caminho relativo dos arquivos e diretórios.
+ * caminho absoluto a partir da raiz do servidor.
  * @return array Retorna uma Array vazia se a operação for bem-sucedida, 
  * sem erros. Retorna uma Array com detalhes dos erros, quais arquivos 
  * não puderam ser importados e por quê. A estrutura da Array de retorno 
