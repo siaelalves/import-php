@@ -11,7 +11,8 @@
  * quantidade de scritps pode ser indefinida. Podem ser especificados 
  * tanto nomes de pastas quanto arquivos individuais. Os scripts serão 
  * incluídos na ordem que forem especificados. Se for uma pasta, 
- * incluirá todos os scripts PHP dentro dessa pasta. Utilize sempre o 
+ * incluirá todos os scripts PHP dentro dessa pasta em ordem alfabética 
+ * de acordo com a tabela Unicode. Utilize sempre o 
  * caminho absoluto a partir da raiz do servidor.
  * @return array Retorna uma Array vazia se a operação for bem-sucedida, 
  * sem erros. Retorna uma Array com detalhes dos erros, quais arquivos 
@@ -25,11 +26,18 @@
  * - `internal`: Mensagem interna do erro;
  * - `file`: Nome do script PHP gerador do erro;
  * - `line`: Linha de código que acionou o erro;
- * - `trace`: Caminho de funções que levou ao erro:
+ * - `trace`: Caminho de funções que levou ao erro;
+ * 
+ * No arquivo `settings.json` é possível configurar se a função deve, ou 
+ * não exibir erros na tela. Se a propriedade `echoErrors` estiver definida 
+ * como `true`, os erros de importação serão impressos na tela. Se estiver 
+ * definida como `false`, os erros não serão impressos. Essa propriedade 
+ * não afeta o retorno dos erros para uma Array.
  * @author Siael Alves
  * @copyright © Copyright 2025, Siael Alves
  */
 function import ( ...$list ) : array {
+ $settings = json_decode ( file_get_contents ( __DIR__ . "/" . "settings.json" ) , true ) ;
 
  /** @var array $result Resultado da função. Contém uma lista de quais arquivos 
   * foram incluídos e dos motivos pelos quais outros arquivos não puderam ser 
@@ -38,15 +46,19 @@ function import ( ...$list ) : array {
 
  if ( gettype ( $list ) == "array" ) {
 
-  array_map ( function ( $item ) use ( &$result ) { 
+  array_map ( function ( $item ) use ( &$result , $settings ) { 
 
    /* Se o item de `$list` for um diretório . . . */
     if ( is_dir ( $item ) ) {
 
      $directory = $item ;
 
-     if ( !file_exists ( $directory ) ) { 
-      $ex = new Error ( "O diretório <code>$directory</directory> não existe." ) ;
+     if ( !file_exists ( $directory ) ) {
+      $ex = new Error ( "<p>O diretório <code>$directory</directory> não existe.</p>" ) ;
+
+      if ( $settings [ "echoErrors" ] == true ) {
+       echo $ex->getMessage();
+      }
       array_push ( $result , [
        "item" => $directory ,
        "message" => "O diretório <code>$directory</directory> não existe." ,
@@ -66,15 +78,18 @@ function import ( ...$list ) : array {
 
      // Verifica cada arquivo dentro do diretório para ver se é válido. Se não for, 
      //  adiciona uma entrada à array `$result`
-     $files = array_map ( function ( $file ) use ( &$result , &$directory ) {
+     $files = array_map ( function ( $file ) use ( &$result , &$directory , $settings ) {
 
       if ( str_starts_with ( $file , "." ) ) { 
        return null ;
       }
 
       if ( !file_exists ( $directory . "/" . $file ) ) {
-       $ex = new Error ( "O arquivo <code>$directory/$file</code> não existe." ) ;
+       $ex = new Error ( "<p>O arquivo <code>$directory/$file</code> não existe.</p>" ) ;
 
+       if ( $settings [ "echoErrors" ] == true ) {
+        echo $ex->getMessage();
+       }
        array_push ( $result , [
         "item" => $file ,
         "message" => "O arquivo <code>$directory/$file</code> não existe." ,
@@ -90,8 +105,11 @@ function import ( ...$list ) : array {
       }
 
       if ( !str_ends_with ( $directory . "/" . $file , ".php" ) ) {
-       $ex = new Error ( "O arquivo <code>$directory/$file</code> é um arquivo inválido." ) ;
+       $ex = new Error ( "<p>O arquivo <code>$directory/$file</code> é um arquivo inválido.</p>" ) ;
 
+       if ( $settings [ "echoErrors" ] == true ) {
+        echo $ex->getMessage();
+       }
        array_push ( $result , [
         "item" => $file ,
         "message" => "O arquivo <code>$directory/$file</code> não parece ser um script php válido porque não 
@@ -113,15 +131,19 @@ function import ( ...$list ) : array {
 
      // Remove elementos `null` da array `$files`. Evita erro ao tentar 
      //  incluir um arquivo de nome vazio.
-     $files = array_filter ( $files, function ( $file ) {
+     $files = array_filter ( $files, function ( $file ) use ( $settings ) {
       return ( $file != null ) ;
      } ) ;
 
      // Verifica se restou algum arquivo dentro da lista.
      if ( count ( $files ) == 0 ) {
-      echo "Não foram encontrados arquivos <code>.php</code> no diretório $directory." ;
+      if ( $settings)
 
-      $ex = new Error ( "Não foram encontrados arquivos <code>.php</code> no diretório $directory." ) ;
+      $ex = new Error ( "<p>Não foram encontrados arquivos <code>.php</code> no diretório $directory.</p>" ) ;
+
+      if ( $settings [ "echoErrors" ] == true ) {
+       echo $ex->getMessage();
+      }
 
       array_push ( $result , [
        "item" => $directory ,
@@ -138,7 +160,7 @@ function import ( ...$list ) : array {
      }
      
      // Realiza a inserção de cada arquivo do diretório no código
-     array_map ( function ( $file ) use ( &$result ) {
+     array_map ( function ( $file ) use ( &$result , $settings ) {
 
       try {
        include $file ;
@@ -175,8 +197,11 @@ function import ( ...$list ) : array {
       }
 
       if ( !file_exists ( $file ) ) {
-       $ex = new Error ( "O arquivo <code>$file</code> não existe." ) ;
+       $ex = new Error ( "<p>O arquivo <code>$file</code> não existe.</p>" ) ;
 
+       if ( $settings [ "echoErrors" ] == true ) {
+        echo $ex->getMessage();
+       }
        array_push ( $result , [
         "item" => $file ,
         "message" => "O arquivo $file não existe." ,
@@ -192,8 +217,11 @@ function import ( ...$list ) : array {
       }
 
       if ( !str_ends_with ( $file , ".php" ) ) {
-       $ex = new Error ( "O arquivo <code>$file</code> é inválido." ) ;
+       $ex = new Error ( "<p>O arquivo <code>$file</code> é inválido.</p>" ) ;
 
+       if ( $settings [ "echoErrors" ] == true ) {
+        echo $ex->getMessage();
+       }
        array_push ( $result , [
         "item" => $file ,
         "message" => "O arquivo '$file' não parece ser um script php válido porque não 
@@ -213,7 +241,9 @@ function import ( ...$list ) : array {
       try {
        include $file ;
       } catch (\Throwable $ex) {
-       echo "Ocorreu um erro ao carregar o arquivo <code>$file</code>." ;
+       if ( $settings [ "echoErrors" ] == true ) {
+        echo "<p>" . $ex->getMessage() . "</p>";
+       }
 
        array_push ( $result , [
         "item" => $file ,
@@ -234,18 +264,24 @@ function import ( ...$list ) : array {
 
   $count_errors = count ( $result ) ;
   
-  if ( $count_errors > 0 ) {
-   echo ( $count_errors == 1 ) ? (
-    "A inclusão foi concluída, mas foi identificado " . count ( $result ) . " erro no processo."
-   ) : (
-    "A inclusão foi concluída, mas foram identificados " . count ( $result ) . " erros no processo."
-   ) ;
+  if ( $settings [ "echoErrors" ] == true ) {
+   if ( $count_errors > 0 ) {
+    echo ( $count_errors == 1 ) ? (
+     "A inclusão foi concluída, mas foi identificado " . count ( $result ) . " erro no processo."
+    ) : (
+     "A inclusão foi concluída, mas foram identificados " . count ( $result ) . " erros no processo."
+    ) ;
+   }
   }
   
   return $result ;
    
  }
 
- throw new InvalidArgumentException ( "Há algo errado nos parâmetros da função <code>import ( )</code>." ) ;
+ $ex = new InvalidArgumentException ( "<p>Há algo errado nos parâmetros da função <code>import ( )</code>.</p>" ) ;
+ if ( $settings [ "echoErrors" ] == true ) {
+  echo $ex->getMessage();
+ }
+ throw $ex;
 
 }
